@@ -1,0 +1,6 @@
+{
+  "name": "Sistem Pelaporan SE2026 Asahan",
+  "description": "Sistem pelaporan monitoring dan dashboard spasial Sensus Ekonomi 2026 BPS Kabupaten Asahan. Mendukung integrasi WhatsApp Gateway dan visualisasi heatmap progres SLS/Desa/Kecamatan.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

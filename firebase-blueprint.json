@@ -1,0 +1,81 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Represents a PPL Mitra staff member with custom login and specific work area.",
+      "type": "object",
+      "properties": {
+        "username": { "type": "string", "description": "Unique login username" },
+        "password": { "type": "string", "description": "Login password" },
+        "name": { "type": "string", "description": "Full name" },
+        "phoneNumber": { "type": "string", "description": "WhatsApp phone number" },
+        "role": { "type": "string", "enum": ["admin", "ppl"], "description": "Access level" },
+        "district": { "type": "string", "description": "Kecamatan" },
+        "desa": { "type": "string", "description": "Desa / Kelurahan" },
+        "subSls": { "type": "string", "description": "ID SLS area kerja" },
+        "lastLogin": { "type": "string", "format": "date-time" }
+      },
+      "required": ["username", "password", "name", "role", "district", "desa"]
+    },
+    "DailyReport": {
+      "title": "Daily Report",
+      "description": "Daily entry reports from PPL.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Reference to User username" },
+        "idsls": { "type": "string", "description": "14-digit SLS ID matching GeoJSON" },
+        "entryCount": { "type": "integer", "description": "Number of entries completed" },
+        "reportDate": { "type": "string", "format": "date", "description": "Date of reporting" },
+        "district": { "type": "string", "description": "District associated with the report" },
+        "status": { "type": "string", "enum": ["pending", "verified"], "description": "Verification status" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "idsls", "entryCount", "reportDate"]
+    },
+    "SLSMaster": {
+      "title": "SLS Master Data",
+      "description": "Target data for spatial visualization mapping.",
+      "type": "object",
+      "properties": {
+        "idsls": { "type": "string" },
+        "nmsls": { "type": "string" },
+        "nmdesa": { "type": "string" },
+        "nmkec": { "type": "string" },
+        "target": { "type": "integer" },
+        "realisasi": { "type": "integer" },
+        "lastUpdate": { "type": "string", "format": "date-time" }
+      },
+      "required": ["idsls", "target"]
+    },
+    "ChatSession": {
+      "title": "Chat Session",
+      "description": "Current state of the WhatsApp bot interaction for a user.",
+      "type": "object",
+      "properties": {
+        "phoneNumber": { "type": "string" },
+        "currentStep": { "type": "string", "enum": ["IDLE", "AWAITING_ENTRY_COUNT", "AWAITING_CONFIRMATION"] },
+        "lastData": { "type": "object" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["phoneNumber", "currentStep"]
+    }
+  },
+  "firestore": {
+    "users": {
+      "schema": "User",
+      "description": "Collection of registered users."
+    },
+    "reports": {
+      "schema": "DailyReport",
+      "description": "Collection of daily progress reports."
+    },
+    "sls": {
+      "schema": "SLSMaster",
+      "description": "Master data for SLS mapping and targets."
+    },
+    "sessions": {
+      "schema": "ChatSession",
+      "description": "Current active bot sessions."
+    }
+  }
+}

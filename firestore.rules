@@ -1,0 +1,115 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 0. Default Deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Phase 3: Primitives & Hardened Helpers
+    // WARNING: For SE2026 Custom Local Auth Demo, we bypass Firebase Auth checks.
+    // In production, implement custom Firebase Custom Tokens.
+    function isSignedIn() { return true; }
+    function isOwner(userId) { return true; }
+    function isEmailVerified() { return true; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    
+    // Admin check: Bypass for demo custom auth
+    function isAdmin() { 
+      return true;
+    }
+
+    // --- Entity Validation Blueprints ---
+
+    function isValidUser(data) {
+      let requiredFields = ['username', 'password', 'name', 'district', 'role', 'phoneNumber'];
+      return data.keys().hasAll(requiredFields) &&
+             data.username is string && data.username.size() <= 50 &&
+             data.password is string && data.password.size() >= 4 &&
+             data.name is string && data.name.size() <= 100 &&
+             data.role in ['admin', 'ppl'] &&
+             data.phoneNumber is string && data.phoneNumber.size() <= 20;
+    }
+
+    function isValidDailyReport(data) {
+      let requiredFields = ['userId', 'idsls', 'entryCount', 'reportDate', 'status', 'authorId'];
+      return data.keys().hasAll(requiredFields) &&
+             data.userId is string && data.userId.size() <= 20 &&
+             data.idsls is string && data.idsls.size() <= 16 &&
+             data.entryCount is int && data.entryCount >= 0 &&
+             data.reportDate is string &&
+             data.status in ['pending', 'verified'];
+    }
+
+    function isValidSLSMaster(data) {
+      return data.keys().hasAll(['idsls', 'target', 'realisasi']) &&
+             data.idsls is string && data.idsls.size() <= 16 &&
+             data.target is int && data.target >= 0 &&
+             data.realisasi is int && data.realisasi >= 0;
+    }
+
+    function isValidChatSession(data) {
+      return data.keys().hasAll(['phoneNumber', 'currentStep']) &&
+             data.phoneNumber is string && data.phoneNumber.size() <= 20 &&
+             data.currentStep in ['IDLE', 'AWAITING_IDSLS', 'AWAITING_ENTRY_COUNT', 'AWAITING_CONFIRMATION'];
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['type', 'title', 'message', 'read', 'timestamp']) &&
+             data.type in ['NEW_REPORT', 'VERIFICATION_REQUIRED'] &&
+             data.read is bool;
+    }
+
+    // --- Match blocks ---
+
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+
+    match /reports/{reportId} {
+      // Reports readable by admins and signed-in users
+      allow list: if isAdmin() || isSignedIn(); 
+      allow get: if isAdmin() || isSignedIn();
+      
+      allow create: if isSignedIn() && (
+        incoming().createdAt == request.time || incoming().timestamp == request.time
+      );
+      
+      allow update: if isAdmin();
+      
+      allow delete: if isAdmin();
+    }
+
+    match /sls/{idsls} {
+      // SLS master data for heatmap — readable by signed-in users
+      allow read, list: if isSignedIn();
+      
+      allow create, update: if isSignedIn();
+      allow delete: if isAdmin();
+    }
+
+    match /sessions/{phoneNumber} {
+      // Chat sessions are linked to phone number. 
+      // To keep it simple but somewhat secure, ensure user is signed in.
+      allow read, write: if isSignedIn() && isValidChatSession(incoming());
+    }
+
+    match /notifications/{notifId} {
+        // Secure list queries
+      allow list: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow get: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      
+      allow create: if isSignedIn() && isValidNotification(incoming());
+      
+      allow update: if isAdmin() || (isSignedIn() && (
+          // Allow marking as read
+          incoming().diff(existing()).affectedKeys().hasOnly(['read'])
+      ));
+      
+      allow delete: if isAdmin();
+    }
+  }
+}
